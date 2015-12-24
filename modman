@@ -1,0 +1,6 @@
+app/etc/modules/Dnd_Patchindexurl.xml app/etc/modules/Dnd_Patchindexurl.xml
+app/code/community/Dnd/Patchindexurl/Model/Indexer/Url.php app/code/community/Dnd/Patchindexurl/Model/Indexer/Url.php
+app/code/community/Dnd/Patchindexurl/Model/Url.php app/code/community/Dnd/Patchindexurl/Model/Url.php
+app/code/community/Dnd/Patchindexurl/Model/Resource/Eav/Mysql4/Url.php app/code/community/Dnd/Patchindexurl/Model/Resource/Eav/Mysql4/Url.php
+app/code/community/Dnd/Patchindexurl/etc/config.xml app/code/community/Dnd/Patchindexurl/etc/config.xml
+app/code/community/Dnd/Patchindexurl/etc/system.xml app/code/community/Dnd/Patchindexurl/etc/system.xml
