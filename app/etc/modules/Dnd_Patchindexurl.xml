@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Dnd_Patchindexurl>
+            <active>true</active>
+            <codePool>community</codePool>
+        </Dnd_Patchindexurl>
+    </modules>
+</config>
