@@ -5,82 +5,61 @@
  * @author 			Agence Dn'D - Conseil en création de site e-Commerce Magento : http://www.dnd.fr/
  * @license 		http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
- 
+
 class Dnd_Patchindexurl_Model_Url extends Mage_Catalog_Model_Url
 {
- 
-    public function refreshProductRewrites($storeId)
+
+    // https://github.com/molotovbliss/DnD_Magento_Patch_Index_URL/issues/2
+    // Patch purposed by Magentix98 for Redirects are created, even if product_use_categories=false
+    public function refreshProductRewrite($productId, $storeId = null)
     {
-        $this->_categories = array();
-        $storeRootCategoryId = $this->getStores($storeId)->getRootCategoryId();
-        $this->_categories[$storeRootCategoryId] = $this->getResource()->getCategory($storeRootCategoryId, $storeId);
 
-        $lastEntityId = 0;
-        $process = true;
+    Mage::log('refreshProductRewrite called for product:' . $productId);
 
-        $enableOptimisation = Mage::getStoreConfigFlag('dev/index/enable');
-        $excludeProductsDisabled = Mage::getStoreConfigFlag('dev/index/disable');
-        $excludeProductsNotVisible = Mage::getStoreConfigFlag('dev/index/notvisible');
-        $useCategoriesInUrl = Mage::getStoreConfig('catalog/seo/product_use_categories');
-        
-        while ($process == true) {
-            $products = $this->getResource()->getProductsByStore($storeId, $lastEntityId);
-            if (!$products) {
-                $process = false;
-                break;
-            }
+    $enableOptimisation = Mage::getStoreConfigFlag('dev/index/enable');
+    $useCategoriesInUrl = Mage::getStoreConfig('product_use_categories');
 
-            $this->_rewrites = array();
-            $this->_rewrites = $this->getResource()->prepareRewrites($storeId, false, array_keys($products));
+    if (is_null($storeId)) {
+        foreach ($this->getStores() as $store) {
+            $this->refreshProductRewrite($productId, $store->getId());
+        }
+        return $this;
+    }
 
-            $loadCategories = array();
-            foreach ($products as $product) {
-                foreach ($product->getCategoryIds() as $categoryId) {
-                    if (!isset($this->_categories[$categoryId])) {
-                        $loadCategories[$categoryId] = $categoryId;
-                    }
-                }
-            }
+    $product = $this->getResource()->getProduct($productId, $storeId);
+    if ($product) {
+        $store = $this->getStores($storeId);
+        $storeRootCategoryId = $store->getRootCategoryId();
 
-            if ($loadCategories) {
-                foreach ($this->getResource()->getCategories($loadCategories, $storeId) as $category) {
-                    $this->_categories[$category->getId()] = $category;
-                }
-            }
-            
-            
-            foreach ($products as $product) {
-	            
-           	 	if($enableOptimisation&&$excludeProductsDisabled&&$product->getData("status")==2)
-           	 	{
-	           	 	continue;
-           	 	}
-            	
-           	 	if($enableOptimisation&&$excludeProductsNotVisible&&$product->getData("visibility")==1)
-           	 	{
-	           	 	continue;
-           	 	}            	
-            	
-           	 	// Always Reindex short url
-                $this->_refreshProductRewrite($product, $this->_categories[$storeRootCategoryId]);
-            	
-            	
-            	if($useCategoriesInUrl!="0"||!$enableOptimisation)
-            	{
-	            	foreach ($product->getCategoryIds() as $categoryId) {
-                    	if ($categoryId != $storeRootCategoryId && isset($this->_categories[$categoryId])) {
-                        	$this->_refreshProductRewrite($product, $this->_categories[$categoryId]);
-                        }
-                    }
-            	}
+        // List of categories the product is assigned to, filtered by being within the store's categories root
+        $categories = $this->getResource()->getCategories($product->getCategoryIds(), $storeId);
+        $this->_rewrites = $this->getResource()->prepareRewrites($storeId, '', $productId);
 
-            }
-
-            unset($products);
-            $this->_rewrites = array();
+        // Add rewrites for all needed categories
+        // If product is assigned to any of store's categories -
+        // we also should use store root category to create root product url rewrite
+        if (!isset($categories[$storeRootCategoryId])) {
+            $categories[$storeRootCategoryId] = $this->getResource()->getCategory($storeRootCategoryId, $storeId);
         }
 
-        $this->_categories = array();
-        return $this;
+        // Create product url rewrites
+        if($useCategoriesInUrl!="0"||!$enableOptimisation) {
+            foreach ($categories as $category) {
+                $this->_refreshProductRewrite($product, $category);
+            }
+        }
+
+        // Remove all other product rewrites created earlier for this store - they're invalid now
+        $excludeCategoryIds = array_keys($categories);
+        $this->getResource()->clearProductRewrites($productId, $storeId, $excludeCategoryIds);
+
+        unset($categories);
+        unset($product);
+    } else {
+        // Product doesn't belong to this store - clear all its url rewrites including root one
+        $this->getResource()->clearProductRewrites($productId, $storeId, array());
+    }
+
+    return $this;
     }
 }
